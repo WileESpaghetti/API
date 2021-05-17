@@ -20,20 +20,16 @@ type ApplicationGuide struct {
 }
 
 const (
-	fields = ` ag.url, ag.websiteID, ag.fileType, ag.catID, ag.icon `
-)
-
-var (
-	createApplicationGuide = `insert into ApplicationGuides (url, websiteID, fileType, catID, icon, brandID) values (?,?,?,?,?,?)`
-	deleteApplicationGuide = `delete from ApplicationGuides where ID = ?`
-	getApplicationGuide    = `select ag.ID, ` + fields + `, c.catTitle from ApplicationGuides as ag
-										left join Categories as c on c.catID = ag.catID
-										where ag.ID = ? `
-	getApplicationGuidesBySite = `select ag.ID, ` + fields + `, c.catTitle from ApplicationGuides as ag
-										left join Categories as c on c.catID = ag.catID
-										Join ApiKeyToBrand as akb on akb.brandID = ag.brandID
-										Join ApiKey as ak on akb.keyID = ak.id
-										where (ak.api_key = ? && (ag.brandID = ? OR 0=?)) && websiteID = ?`
+	createApplicationGuide = `INSERT INTO ApplicationGuides (url, websiteID, fileType, catID, icon, brandID) VALUES (?,?,?,?,?,?)`
+	deleteApplicationGuide = `DELETE FROM ApplicationGuides WHERE ID = ?`
+	getApplicationGuide    = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, ApplicationGuides.fileType, ApplicationGuides.catID, ApplicationGuides.icon, Categories.catTitle FROM ApplicationGuides
+			LEFT JOIN Categories ON Categories.catID = ApplicationGuides.catID
+			WHERE ApplicationGuides.ID = ? `
+	getApplicationGuidesBySite = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, ApplicationGuides.fileType, ApplicationGuides.catID, ApplicationGuides.icon, Categories.catTitle FROM ApplicationGuides
+			LEFT JOIN Categories on Categories.catID = ApplicationGuides.catID
+			JOIN ApiKeyToBrand on ApiKeyToBrand.brandID = ApplicationGuides.brandID
+			JOIN ApiKey on ApiKeyToBrand.keyID = ApiKey.id
+			WHERE (ApiKey.api_key = ? && (ApplicationGuides.brandID = ? OR 0=?)) && websiteID = ?`
 )
 
 func (ag *ApplicationGuide) Get(dtx *apicontext.DataContext) error {
