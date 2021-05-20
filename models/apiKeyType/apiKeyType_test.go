@@ -4,22 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/bmizerany/assert"
+	"github.com/curt-labs/API/helpers"
 )
-
-func NewMock() (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	if err != nil {
-		log.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-
-	return db, mock
-}
 
 func TestApiKeyType_Get(t *testing.T) {
 	var getTests = []struct {
@@ -47,7 +38,7 @@ func TestApiKeyType_Get(t *testing.T) {
 
 	for _, tt := range getTests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, mock := NewMock()
+			db, mock := helpers.NewMock()
 			defer db.Close()
 
 			query := getApiKeyType
@@ -132,7 +123,7 @@ func TestApiKeyType_GetAllApiKeyTypes(t *testing.T) {
 
 	for _, tt := range getTests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, mock := NewMock()
+			db, mock := helpers.NewMock()
 			defer db.Close()
 
 			query := getAllApiKeyTypes
@@ -186,7 +177,7 @@ func TestApiKeyType_Create(t *testing.T) {
 
 	for _, tt := range getTests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, mock := NewMock()
+			db, mock := helpers.NewMock()
 			defer db.Close()
 
 			added := sqlmock.AnyArg() // workaround for time.Now()
@@ -244,7 +235,7 @@ func TestApiKeyType_Delete(t *testing.T) {
 
 	for _, tt := range getTests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, mock := NewMock()
+			db, mock := helpers.NewMock()
 			defer db.Close()
 
 			query := deleteApiKeyType
