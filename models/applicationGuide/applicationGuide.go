@@ -22,7 +22,7 @@ type ApplicationGuide struct {
 const (
 	createApplicationGuide = `INSERT INTO ApplicationGuides (url, websiteID, fileType, catID, icon, brandID) VALUES (?,?,?,?,?,?)`
 	deleteApplicationGuide = `DELETE FROM ApplicationGuides WHERE ID = ?`
-	getApplicationGuide    = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, ApplicationGuides.fileType, ApplicationGuides.catID, ApplicationGuides.icon, Categories.catTitle FROM ApplicationGuides
+	getApplicationGuide    = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, IFNULL(ApplicationGuides.fileType, ''), ApplicationGuides.catID, ApplicationGuides.icon, IFNULL(Categories.catTitle, '') FROM ApplicationGuides
 			LEFT JOIN Categories ON Categories.catID = ApplicationGuides.catID
 			WHERE ApplicationGuides.ID = ? `
 	getApplicationGuidesBySite = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, ApplicationGuides.fileType, ApplicationGuides.catID, ApplicationGuides.icon, Categories.catTitle FROM ApplicationGuides
@@ -32,24 +32,19 @@ const (
 			WHERE (ApiKey.api_key = ? && (ApplicationGuides.brandID = ? OR 0=?)) && websiteID = ?`
 )
 
-func (ag *ApplicationGuide) Get(dtx *apicontext.DataContext) error {
-	err := database.Init()
-	if err != nil {
+func (ag *ApplicationGuide) Get(db *sql.DB) error {
+	id := ag.ID
+
+	err := db.QueryRow(getApplicationGuide, id).
+		Scan(&ag.ID, &ag.Url, &ag.Website.ID, &ag.FileType, &ag.Category.CategoryID, &ag.Icon, &ag.Category.Title)
+	switch {
+	case err == sql.ErrNoRows:
 		return err
-	}
-
-	stmt, err := database.DB.Prepare(getApplicationGuide)
-	if err != nil {
+	case err != nil:
 		return err
+	default:
+		return nil
 	}
-
-	defer stmt.Close()
-	row := stmt.QueryRow(ag.ID)
-
-	ch := make(chan ApplicationGuide)
-	go populateApplicationGuide(row, ch)
-	*ag = <-ch
-	return nil
 }
 
 func (ag *ApplicationGuide) GetBySite(dtx *apicontext.DataContext) ([]ApplicationGuide, error) {
@@ -115,36 +110,6 @@ func (ag *ApplicationGuide) Delete() error {
 		return err
 	}
 	return nil
-}
-
-func populateApplicationGuide(row *sql.Row, ch chan ApplicationGuide) {
-	var ag ApplicationGuide
-	var catID *int
-	var icon []byte
-	var catName *string
-	err := row.Scan(
-		&ag.ID,
-		&ag.Url,
-		&ag.Website.ID,
-		&ag.FileType,
-		&catID,
-		&icon,
-		&catName,
-	)
-	if err != nil {
-		ch <- ag
-	}
-	if catID != nil {
-		ag.Category.CategoryID = *catID
-	}
-	if catName != nil {
-		ag.Category.Title = *catName
-	}
-	if icon != nil {
-		ag.Icon = string(icon[:])
-	}
-	ch <- ag
-	return
 }
 
 func populateApplicationGuides(rows *sql.Rows, ch chan []ApplicationGuide) {

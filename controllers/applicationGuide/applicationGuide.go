@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/curt-labs/API/helpers/apicontext"
+	"github.com/curt-labs/API/helpers/database"
 	"github.com/curt-labs/API/helpers/encoding"
 	"github.com/curt-labs/API/helpers/error"
 	"github.com/curt-labs/API/models/applicationGuide"
@@ -23,7 +24,12 @@ func GetApplicationGuide(rw http.ResponseWriter, req *http.Request, enc encoding
 		apierror.GenerateError("Trouble converting ID parameter", err, rw, req)
 	}
 
-	err = ag.Get(dtx)
+	err = database.Init()
+	if err != nil {
+		apierror.GenerateError("Error getting Application Guide", err, rw, req)
+	}
+
+	err = ag.Get(database.DB)
 	if err != nil {
 		apierror.GenerateError("Error getting Application Guide", err, rw, req)
 	}
