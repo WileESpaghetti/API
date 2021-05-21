@@ -25,7 +25,7 @@ const (
 	getApplicationGuide    = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, IFNULL(ApplicationGuides.fileType, ''), ApplicationGuides.catID, ApplicationGuides.icon, IFNULL(Categories.catTitle, '') FROM ApplicationGuides
 			LEFT JOIN Categories ON Categories.catID = ApplicationGuides.catID
 			WHERE ApplicationGuides.ID = ? `
-	getApplicationGuidesBySite = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, ApplicationGuides.fileType, ApplicationGuides.catID, ApplicationGuides.icon, Categories.catTitle FROM ApplicationGuides
+	getApplicationGuidesBySite = `SELECT ApplicationGuides.ID, ApplicationGuides.url, ApplicationGuides.websiteID, IFNULL(ApplicationGuides.fileType), ApplicationGuides.catID, ApplicationGuides.icon, IFNULL(Categories.catTitle) FROM ApplicationGuides
 			LEFT JOIN Categories on Categories.catID = ApplicationGuides.catID
 			JOIN ApiKeyToBrand on ApiKeyToBrand.brandID = ApplicationGuides.brandID
 			JOIN ApiKey on ApiKeyToBrand.keyID = ApiKey.id
@@ -47,25 +47,36 @@ func (ag *ApplicationGuide) Get(db *sql.DB) error {
 	}
 }
 
-func (ag *ApplicationGuide) GetBySite(dtx *apicontext.DataContext) ([]ApplicationGuide, error) {
-	err := database.Init()
+func (ag *ApplicationGuide) GetBySite(db *sql.DB, dtx *apicontext.DataContext) ([]ApplicationGuide, error) {
+	apiKey := dtx.APIKey
+	brandID := dtx.BrandID
+	websiteID := ag.Website.ID
+
+	rows, err := db.Query(getApplicationGuidesBySite, apiKey, brandID, brandID, websiteID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	stmt, err := database.DB.Prepare(getApplicationGuidesBySite)
-	if err != nil {
-		return nil, err
+	ags := make([]ApplicationGuide, 0)
+	for rows.Next() {
+		var ag ApplicationGuide
+		if err := rows.Scan(&ag.ID, &ag.Url, &ag.Website.ID, &ag.FileType, &ag.Category.CategoryID, &ag.Icon, &ag.Category.Title); err != nil {
+			// stop fetching keys on first error
+			return ags, err
+		}
+		ags = append(ags, ag)
 	}
 
-	defer stmt.Close()
-	rows, err := stmt.Query(dtx.APIKey, dtx.BrandID, dtx.BrandID, ag.Website.ID)
+	rerr := rows.Close()
+	if rerr != nil {
+		return ags, rerr
+	}
 
-	var ags []ApplicationGuide
+	if err := rows.Err(); err != nil {
+		return ags, err
+	}
 
-	ch := make(chan []ApplicationGuide)
-	go populateApplicationGuides(rows, ch)
-	ags = <-ch
 	return ags, nil
 }
 
@@ -110,40 +121,4 @@ func (ag *ApplicationGuide) Delete() error {
 		return err
 	}
 	return nil
-}
-
-func populateApplicationGuides(rows *sql.Rows, ch chan []ApplicationGuide) {
-	var ag ApplicationGuide
-	var ags []ApplicationGuide
-	var catID *int
-	var icon []byte
-	var catName *string
-	for rows.Next() {
-		err := rows.Scan(
-			&ag.ID,
-			&ag.Url,
-			&ag.Website.ID,
-			&ag.FileType,
-			&catID,
-			&icon,
-			&catName,
-		)
-		if err != nil {
-			ch <- ags
-		}
-		if catID != nil {
-			ag.Category.CategoryID = *catID
-		}
-		if catName != nil {
-			ag.Category.Title = *catName
-		}
-		if icon != nil {
-			ag.Icon = string(icon[:])
-		}
-		ags = append(ags, ag)
-	}
-	defer rows.Close()
-
-	ch <- ags
-	return
 }

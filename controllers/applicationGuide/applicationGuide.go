@@ -42,7 +42,12 @@ func GetApplicationGuidesByWebsite(rw http.ResponseWriter, req *http.Request, en
 	id := params["id"]
 	ag.Website.ID, err = strconv.Atoi(id)
 
-	ags, err := ag.GetBySite(dtx)
+	err = database.Init()
+	if err != nil {
+		apierror.GenerateError("Error getting Application Guides", err, rw, req)
+	}
+
+	ags, err := ag.GetBySite(database.DB, dtx)
 	if err != nil {
 		apierror.GenerateError("Error getting Application Guides", err, rw, req)
 	}

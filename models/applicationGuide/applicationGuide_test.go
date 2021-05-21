@@ -2,6 +2,8 @@ package applicationGuide
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -36,10 +38,10 @@ func TestAppGuides(t *testing.T) {
 		//So(err, ShouldBeNil)
 
 		//get by site
-		ags, err := ag.GetBySite(MockedDTX)
+		//ags, err := ag.GetBySite(MockedDTX)
 
-		So(err, ShouldBeNil)
-		So(len(ags), ShouldBeGreaterThanOrEqualTo, 1)
+		//So(err, ShouldBeNil)
+		//So(len(ags), ShouldBeGreaterThanOrEqualTo, 1)
 
 		//delete
 		err = ag.Delete()
@@ -85,8 +87,8 @@ func BenchmarkGetBySite(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		ag.Create(MockedDTX)
-		b.StartTimer()
-		ag.GetBySite(MockedDTX)
+		//b.StartTimer()
+		//ag.GetBySite(MockedDTX)
 		b.StopTimer()
 		ag.Delete()
 	}
@@ -157,6 +159,96 @@ func TestApplicationGuide_Get(t *testing.T) {
 			err := tt.in.Get(db)
 			assert.Equal(t, tt.outErr, err)
 			assert.Equal(t, tt.outAg, tt.in)
+		})
+	}
+}
+
+func TestApplicationGuide_GetBySite(t *testing.T) {
+	var columns = []string{"id", "url", "websiteID", "fileType", "catID", "icon", "catTitle"}
+	var getBySiteTests = []struct {
+		name     string
+		in       ApplicationGuide
+		rows     *sqlmock.Rows
+		queryErr error
+		outErr   error
+		outAgs   []ApplicationGuide
+	}{
+		{
+			name:   "no application guides found",
+			in:     ApplicationGuide{Website: site.Website{ID: 1}},
+			rows:   sqlmock.NewRows(columns),
+			outErr: nil,
+			outAgs: []ApplicationGuide{},
+		},
+		{
+			name:     "query failed",
+			rows:     sqlmock.NewRows(columns),
+			queryErr: errors.New("query error"),
+			outErr:   errors.New("query error"),
+			outAgs:   nil,
+		},
+		{
+			name: "application guides found",
+			rows: sqlmock.NewRows(columns).
+				AddRow(1, "http://www.example.com", 1, "xls", 2, "www.example.com/icon.png", "example title").
+				AddRow(2, "http://www.example.org", 1, "xls", 3, "www.example.org/icon.png", "example2 title").
+				AddRow(3, "http://www.example.net", 1, "xls", 4, "www.example.net/icon.png", "example3 title"),
+			outErr: nil,
+			outAgs: []ApplicationGuide{
+				{ID: 1, Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "xls", Category: products.Category{CategoryID: 2, Title: "example title"}, Icon: "www.example.com/icon.png"},
+				{ID: 2, Url: "http://www.example.org", Website: site.Website{ID: 1}, FileType: "xls", Category: products.Category{CategoryID: 3, Title: "example2 title"}, Icon: "www.example.org/icon.png"},
+				{ID: 3, Url: "http://www.example.net", Website: site.Website{ID: 1}, FileType: "xls", Category: products.Category{CategoryID: 4, Title: "example3 title"}, Icon: "www.example.net/icon.png"},
+			},
+		},
+		{
+			name: "scan error on application guide",
+			rows: sqlmock.NewRows(columns).
+				AddRow(1, "http://www.example.com", 1, "xls", 2, "www.example.com/icon.png", "example title").
+				AddRow(2, "http://www.example.org", 1, "xls", "asdf", "www.example.org/icon.png", "example2 title"). // causes scan error
+				AddRow(3, "http://www.example.net", 1, "xls", 4, "www.example.net/icon.png", "example3 title"),
+			outErr: fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, 4, columns[4], errors.New("converting driver.Value type string (\"asdf\") to a int: invalid syntax")),
+			outAgs: []ApplicationGuide{
+				{ID: 1, Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "xls", Category: products.Category{CategoryID: 2, Title: "example title"}, Icon: "www.example.com/icon.png"},
+			},
+		},
+		{
+			name: "row error",
+			rows: sqlmock.NewRows(columns).
+				AddRow(1, "http://www.example.com", 1, "xls", 2, "www.example.com/icon.png", "example title").
+				AddRow(2, "http://www.example.org", 1, "xls", "asdf", "www.example.org/icon.png", "example2 title"). // causes scan error
+				AddRow(3, "http://www.example.net", 1, "xls", 4, "www.example.net/icon.png", "example3 title").
+				RowError(1, errors.New("scan error")),
+			outErr: errors.New("scan error"),
+			outAgs: []ApplicationGuide{
+				{ID: 1, Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "xls", Category: products.Category{CategoryID: 2, Title: "example title"}, Icon: "www.example.com/icon.png"},
+			},
+		},
+	}
+
+	for _, tt := range getBySiteTests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock := helpers.NewMock()
+			defer db.Close()
+
+			query := getApplicationGuidesBySite
+
+			var rows *sqlmock.Rows
+			if tt.rows != nil {
+				rows = tt.rows
+			} else {
+				rows = sqlmock.NewRows(columns)
+			}
+
+			mock.ExpectQuery(query).WillReturnRows(rows).WillReturnError(tt.queryErr)
+
+			ctx := &apicontext.DataContext{
+				APIKey:  "99900000-0000-0000-0000-000000000000",
+				BrandID: 1,
+			}
+			ags, err := tt.in.GetBySite(db, ctx)
+
+			assert.Equal(t, tt.outErr, err)
+			assert.Equal(t, tt.outAgs, ags)
 		})
 	}
 }
