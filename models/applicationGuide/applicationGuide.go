@@ -80,22 +80,20 @@ func (ag *ApplicationGuide) GetBySite(db *sql.DB, dtx *apicontext.DataContext) (
 	return ags, nil
 }
 
-func (ag *ApplicationGuide) Create(dtx *apicontext.DataContext) error {
-	err := database.Init()
+func (ag *ApplicationGuide) Create(db *sql.DB, dtx *apicontext.DataContext) error {
+	brandID := dtx.BrandID
+
+	result, err := db.Exec(createApplicationGuide, ag.Url, ag.Website.ID, ag.FileType, ag.Category.CategoryID, ag.Icon, brandID)
 	if err != nil {
 		return err
 	}
 
-	stmt, err := database.DB.Prepare(createApplicationGuide)
+	_, err = result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
-	res, err := stmt.Exec(ag.Url, ag.Website.ID, ag.FileType, ag.Category.CategoryID, ag.Icon, dtx.BrandID)
-	if err != nil {
-		return err
-	}
-	id, err := res.LastInsertId()
+
+	id, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}

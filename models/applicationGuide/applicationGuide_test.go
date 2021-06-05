@@ -16,6 +16,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var ctx = &apicontext.DataContext{
+	APIKey:  "99900000-0000-0000-0000-000000000000",
+	BrandID: 1,
+}
+
 func TestAppGuides(t *testing.T) {
 	MockedDTX := &apicontext.DataContext{}
 	var err error
@@ -27,11 +32,11 @@ func TestAppGuides(t *testing.T) {
 		var ag ApplicationGuide
 
 		//create
-		ag.FileType = "pdf"
-		ag.Url = "test.com"
-		ag.Website.ID = MockedDTX.WebsiteID
-		err = ag.Create(MockedDTX)
-		So(err, ShouldBeNil)
+		//ag.FileType = "pdf"
+		//ag.Url = "test.com"
+		//ag.Website.ID = MockedDTX.WebsiteID
+		//err = ag.Create(MockedDTX)
+		//So(err, ShouldBeNil)
 
 		//get
 		//err = ag.Get(MockedDTX)
@@ -64,7 +69,7 @@ func BenchmarkGetAppGuide(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		ag.Create(MockedDTX)
+		//ag.Create(MockedDTX)
 		//b.StartTimer()
 		//ag.Get(MockedDTX)
 		//b.StopTimer()
@@ -86,7 +91,7 @@ func BenchmarkGetBySite(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		ag.Create(MockedDTX)
+		//ag.Create(MockedDTX)
 		//b.StartTimer()
 		//ag.GetBySite(MockedDTX)
 		b.StopTimer()
@@ -108,7 +113,7 @@ func BenchmarkDeleteAppGuide(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		ag.Create(MockedDTX)
+		//ag.Create(MockedDTX)
 		b.StartTimer()
 		ag.Delete()
 	}
@@ -241,14 +246,56 @@ func TestApplicationGuide_GetBySite(t *testing.T) {
 
 			mock.ExpectQuery(query).WillReturnRows(rows).WillReturnError(tt.queryErr)
 
-			ctx := &apicontext.DataContext{
-				APIKey:  "99900000-0000-0000-0000-000000000000",
-				BrandID: 1,
-			}
 			ags, err := tt.in.GetBySite(db, ctx)
 
 			assert.Equal(t, tt.outErr, err)
 			assert.Equal(t, tt.outAgs, ags)
+		})
+	}
+}
+
+func TestApiKeyType_Create(t *testing.T) {
+	var getTests = []struct {
+		name    string
+		in      *ApplicationGuide
+		result  sql.Result
+		execErr error
+		rows    *sqlmock.Rows
+		outErr  error
+		outAg   *ApplicationGuide
+	}{
+		{
+			name:    "insert API key type failed",
+			in:      &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
+			execErr: errors.New("exec error"),
+			outErr:  errors.New("exec error"),
+			outAg:   &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
+		},
+		{
+			name:    "successful insert API key type",
+			in:      &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
+			execErr: nil,
+			outErr:  nil,
+			result:  sqlmock.NewResult(1, 1),
+			rows:    sqlmock.NewRows([]string{"id"}).AddRow("99990000-0000-0000-0000-000000000000"),
+			outAg:   &ApplicationGuide{ID: 1, Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
+		},
+	}
+
+	for _, tt := range getTests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock := helpers.NewMock()
+			defer db.Close()
+
+			query := createApplicationGuide
+			mock.ExpectExec(query).
+				WithArgs(tt.in.Url, tt.in.Website.ID, tt.in.FileType, tt.in.Category.CategoryID, tt.in.Icon, ctx.BrandID).
+				WillReturnError(tt.execErr).
+				WillReturnResult(tt.result)
+
+			err := tt.in.Create(db, ctx)
+			assert.Equal(t, tt.outErr, err)
+			assert.Equal(t, tt.outAg, tt.in)
 		})
 	}
 }

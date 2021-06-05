@@ -2,17 +2,15 @@ package database
 
 import (
 	"context"
+	"crypto/tls"
+	"database/sql"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-
-	"crypto/tls"
-	"database/sql"
-
-	"net"
 
 	"github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/dialers/mysql"
 	"github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/proxy"
@@ -53,7 +51,7 @@ func Init() error {
 	var err error
 	if DB == nil {
 		if os.Getenv("DATABASE_INSTANCE") == "" {
-			DB, err = sql.Open(Driver, ConnectionString())
+			DB, err = sql.Open(Driver, "root:root@/CurtData" /*ConnectionString()*/)
 		} else {
 			client, err := clientFromCredentials()
 			if err != nil {
@@ -75,7 +73,7 @@ func Init() error {
 
 	if VcdbDB == nil {
 		if os.Getenv("DATABASE_INSTANCE") == "" {
-			VcdbDB, err = sql.Open(Driver, VcdbConnectionString())
+			VcdbDB, err = sql.Open(Driver /* VcdbConnectionString()*/, "root:root@/vcdb")
 		} else {
 			client, err := clientFromCredentials()
 			if err != nil {
@@ -96,7 +94,8 @@ func Init() error {
 		}
 	}
 
-	return InitMongo()
+	//return InitMongo()
+	return nil
 }
 
 func ConnectionString() string {
@@ -110,9 +109,9 @@ func ConnectionString() string {
 	}
 
 	if EmptyDb != nil && *EmptyDb != "" {
-		return "root:@tcp(127.0.0.1:3306)/CurtDev_Empty?parseTime=true&loc=America%2FChicago"
+		return "root:root@tcp(127.0.0.1:3306)/CurtDev_Empty?parseTime=true&loc=America%2FChicago"
 	}
-	return "root:@tcp(127.0.0.1:3306)/CurtData?parseTime=true&loc=America%2FChicago"
+	return "root:root@tcp(127.0.0.1:3306)/CurtData?parseTime=true&loc=America%2FChicago"
 }
 
 func VcdbConnectionString() string {
@@ -124,7 +123,7 @@ func VcdbConnectionString() string {
 		return fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true&loc=%s", user, pass, proto, addr, db, "America%2FChicago")
 	}
 
-	return "root:@tcp(127.0.0.1:3306)/vcdb?parseTime=true&loc=America%2FChicago"
+	return "root:root@tcp(127.0.0.1:3306)/vcdb?parseTime=true&loc=America%2FChicago"
 }
 
 func VintelligencePass() string {
