@@ -29,7 +29,7 @@ func TestAppGuides(t *testing.T) {
 	}
 	Convey("Test Create AppGuide", t, func() {
 		var err error
-		var ag ApplicationGuide
+		//var ag ApplicationGuide
 
 		//create
 		//ag.FileType = "pdf"
@@ -49,7 +49,7 @@ func TestAppGuides(t *testing.T) {
 		//So(len(ags), ShouldBeGreaterThanOrEqualTo, 1)
 
 		//delete
-		err = ag.Delete()
+		//err = ag.Delete()
 		So(err, ShouldBeNil)
 
 	})
@@ -73,7 +73,7 @@ func BenchmarkGetAppGuide(b *testing.B) {
 		//b.StartTimer()
 		//ag.Get(MockedDTX)
 		//b.StopTimer()
-		ag.Delete()
+		//ag.Delete()
 	}
 	_ = apicontextmock.DeMock(MockedDTX)
 }
@@ -95,7 +95,7 @@ func BenchmarkGetBySite(b *testing.B) {
 		//b.StartTimer()
 		//ag.GetBySite(MockedDTX)
 		b.StopTimer()
-		ag.Delete()
+		//ag.Delete()
 	}
 	_ = apicontextmock.DeMock(MockedDTX)
 }
@@ -115,7 +115,7 @@ func BenchmarkDeleteAppGuide(b *testing.B) {
 		b.StopTimer()
 		//ag.Create(MockedDTX)
 		b.StartTimer()
-		ag.Delete()
+		//ag.Delete()
 	}
 	_ = apicontextmock.DeMock(MockedDTX)
 }
@@ -254,7 +254,7 @@ func TestApplicationGuide_GetBySite(t *testing.T) {
 	}
 }
 
-func TestApiKeyType_Create(t *testing.T) {
+func TestApplicationGuide_Create(t *testing.T) {
 	var getTests = []struct {
 		name    string
 		in      *ApplicationGuide
@@ -265,14 +265,14 @@ func TestApiKeyType_Create(t *testing.T) {
 		outAg   *ApplicationGuide
 	}{
 		{
-			name:    "insert API key type failed",
+			name:    "insert application guide failed",
 			in:      &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
 			execErr: errors.New("exec error"),
 			outErr:  errors.New("exec error"),
 			outAg:   &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
 		},
 		{
-			name:    "successful insert API key type",
+			name:    "successful insert application guide type",
 			in:      &ApplicationGuide{Url: "http://www.example.com", Website: site.Website{ID: 1}, FileType: "pdf", Category: products.Category{CategoryID: 2, Title: "new category"}, Icon: "http://www.example.com/icon.png"},
 			execErr: nil,
 			outErr:  nil,
@@ -296,6 +296,46 @@ func TestApiKeyType_Create(t *testing.T) {
 			err := tt.in.Create(db, ctx)
 			assert.Equal(t, tt.outErr, err)
 			assert.Equal(t, tt.outAg, tt.in)
+		})
+	}
+}
+
+func TestApplicationGuide_Delete(t *testing.T) {
+	var getTests = []struct {
+		name    string
+		in      *ApplicationGuide
+		result  sql.Result
+		execErr error
+		outErr  error
+	}{
+		{
+			name:    "delete application guide failed",
+			in:      &ApplicationGuide{ID: 1},
+			execErr: errors.New("exec error"),
+			outErr:  errors.New("exec error"),
+		},
+		{
+			name:    "successful delete application guide",
+			in:      &ApplicationGuide{ID: 1},
+			execErr: nil,
+			outErr:  nil,
+			result:  sqlmock.NewResult(0, 1),
+		},
+	}
+
+	for _, tt := range getTests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock := helpers.NewMock()
+			defer db.Close()
+
+			query := deleteApplicationGuide
+			mock.ExpectExec(query).
+				WithArgs(tt.in.ID).
+				WillReturnError(tt.execErr).
+				WillReturnResult(tt.result)
+
+			err := tt.in.Delete(db)
+			assert.Equal(t, tt.outErr, err)
 		})
 	}
 }

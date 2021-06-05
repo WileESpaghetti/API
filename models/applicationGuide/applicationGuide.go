@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/curt-labs/API/helpers/apicontext"
-	"github.com/curt-labs/API/helpers/database"
 	"github.com/curt-labs/API/models/products"
 	"github.com/curt-labs/API/models/site"
 	_ "github.com/go-sql-driver/mysql"
@@ -102,21 +101,18 @@ func (ag *ApplicationGuide) Create(db *sql.DB, dtx *apicontext.DataContext) erro
 	return nil
 }
 
-func (ag *ApplicationGuide) Delete() error {
-	err := database.Init()
+func (ag *ApplicationGuide) Delete(db *sql.DB) error {
+	id := ag.ID
+
+	result, err := db.Exec(deleteApplicationGuide, id)
 	if err != nil {
 		return err
 	}
 
-	stmt, err := database.DB.Prepare(deleteApplicationGuide)
+	_, err = result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	defer stmt.Close()
-	_, err = stmt.Exec(ag.ID)
-	if err != nil {
-		return err
-	}
 	return nil
 }
