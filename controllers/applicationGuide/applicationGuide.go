@@ -92,7 +92,13 @@ func CreateApplicationGuide(rw http.ResponseWriter, req *http.Request, enc encod
 			apierror.GenerateError("Error parsing category ID or website ID", err, rw, req)
 		}
 	}
-	err = ag.Create(dtx)
+
+	err = database.Init()
+	if err != nil {
+		apierror.GenerateError("Error creating Application Guide", err, rw, req)
+	}
+
+	err = ag.Create(database.DB, dtx)
 	if err != nil {
 		apierror.GenerateError("Error creating Application Guide", err, rw, req)
 	}
@@ -106,7 +112,13 @@ func DeleteApplicationGuide(rw http.ResponseWriter, req *http.Request, enc encod
 	var ag applicationGuide.ApplicationGuide
 	id, err := strconv.Atoi(params["id"])
 	ag.ID = id
-	err = ag.Delete()
+
+	err = database.Init()
+	if err != nil {
+		apierror.GenerateError("Error deleting Application Guide", err, rw, req)
+	}
+
+	err = ag.Delete(database.DB)
 	if err != nil {
 		apierror.GenerateError("Error deleting Application Guide", err, rw, req)
 	}
